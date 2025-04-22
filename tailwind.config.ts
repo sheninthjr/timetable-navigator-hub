@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,48 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Subject colors
+				pas: {
+					DEFAULT: '#3b82f6',
+					light: '#eff6ff',
+				},
+				os: {
+					DEFAULT: '#a855f7',
+					light: '#f5f3ff',
+				},
+				ml: {
+					DEFAULT: '#ec4899',
+					light: '#fdf2f8',
+				},
+				fdsa: {
+					DEFAULT: '#14b8a6',
+					light: '#f0fdfa',
+				},
+				cn: {
+					DEFAULT: '#eab308',
+					light: '#fefce8',
+				},
+				evs: {
+					DEFAULT: '#22c55e',
+					light: '#f0fdf4',
+				},
+				lab: {
+					DEFAULT: '#38bdf8',
+					light: '#f0f9ff',
+				},
+				activity: {
+					DEFAULT: '#f97316',
+					light: '#fff7ed',
+				},
+				pd: {
+					DEFAULT: '#8b5cf6',
+					light: '#f5f3ff',
+				},
+				lib: {
+					DEFAULT: '#06b6d4',
+					light: '#ecfeff',
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
