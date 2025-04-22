@@ -14,6 +14,8 @@ import { toast } from "sonner";
 const Index = () => {
   const { isAuthenticated } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleString());
+  const [timetable, setTimetable] = useState(getTimetable());
 
   useEffect(() => {
     // Initialize empty timetable if none exists
@@ -21,6 +23,8 @@ const Index = () => {
     if (currentTimetable.length === 0) {
       initializeEmptyTimetable();
     }
+    setTimetable(getTimetable());
+    setLastUpdated(new Date().toLocaleString());
   }, []);
 
   const handleRegenerateTimetable = () => {
@@ -43,11 +47,19 @@ const Index = () => {
         return;
       }
       
+      console.log("Starting timetable generation...");
+      
       // Generate the timetable
       const generatedTimetable = generateTimetable(subjects, staff, settings);
       
+      console.log("Timetable generated:", generatedTimetable);
+      
       // Save the generated timetable
       saveTimetable(generatedTimetable);
+      
+      // Update the state to force a re-render
+      setTimetable(generatedTimetable);
+      setLastUpdated(new Date().toLocaleString());
       
       toast.success("Timetable regenerated successfully!");
     } catch (error) {
@@ -77,12 +89,12 @@ const Index = () => {
               </Button>
             )}
           </div>
-          <TimetableDisplay />
+          <TimetableDisplay key={lastUpdated} />
           <TimetableLegend />
           
           <div className="mt-6 text-center text-sm text-gray-500">
             <p>Click on a time slot to edit it (admin access required)</p>
-            <p className="mt-1">Last updated: {new Date().toLocaleString()}</p>
+            <p className="mt-1">Last updated: {lastUpdated}</p>
           </div>
         </div>
       </div>

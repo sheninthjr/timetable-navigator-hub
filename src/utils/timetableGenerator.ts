@@ -10,6 +10,13 @@ export const generateTimetable = (
   const periodsPerDay = settings.periodTimings.length;
   let timetable: TimeSlot[] = [];
 
+  console.log("Starting timetable generation with:", { 
+    subjects: subjects.length, 
+    staff: staff.length, 
+    days, 
+    periodsPerDay 
+  });
+
   // Create empty timetable structure
   days.forEach((day) => {
     for (let period = 1; period <= periodsPerDay; period++) {
@@ -50,9 +57,17 @@ export const generateTimetable = (
   const labSubjects = sortedSubjects.filter((subject) => subject.isLab);
   
   labSubjects.forEach((lab) => {
-    let periodsAssigned = 0;
-    while (periodsAssigned < (lab.periodsPerWeek / 2)) { // Each lab session takes 2 periods
-      // Try to place lab in available two consecutive periods
+    // Each lab should only be scheduled once (for 2 consecutive periods)
+    // Instead of periodsPerWeek/2 which could lead to multiple sessions
+    let scheduled = false;
+    const maxAttempts = 50; // Prevent infinite loops
+    let attempts = 0;
+    
+    // Try to place lab in a single 2-period block
+    while (!scheduled && attempts < maxAttempts) {
+      attempts++;
+      
+      // Randomly select a day
       const randomDayIndex = Math.floor(Math.random() * days.length);
       const day = days[randomDayIndex];
       
@@ -114,13 +129,45 @@ export const generateTimetable = (
           secondPeriodSlot.staffId = lab.staffId;
           secondPeriodSlot.spanTwoPeriods = true;
           
-          periodsAssigned++;
+          scheduled = true;
+          console.log(`Scheduled lab ${lab.name} on ${day} at period ${startPeriod}-${startPeriod+1}`);
         }
       }
-      
-      // Add a safety break to prevent infinite loops
-      if (periodsAssigned === 0 && Math.random() < 0.2) {
-        break;
+    }
+    
+    // If we couldn't schedule the lab normally, force place it
+    if (!scheduled) {
+      console.log(`Could not schedule lab ${lab.name} normally, forcing placement`);
+      // Find any two consecutive available slots
+      for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+        const day = days[dayIndex];
+        for (let period = 1; period < periodsPerDay; period++) {
+          // Skip periods before breaks
+          const isBeforeBreak = settings.breaks.some(b => b.after === period);
+          if (isBeforeBreak) continue;
+          
+          const firstSlot = timetable.find(
+            slot => slot.day === day && slot.period === period && !slot.isBreak && !slot.subjectId
+          );
+          const secondSlot = timetable.find(
+            slot => slot.day === day && slot.period === period + 1 && !slot.isBreak && !slot.subjectId
+          );
+          
+          if (firstSlot && secondSlot) {
+            firstSlot.subjectId = lab.id;
+            firstSlot.staffId = lab.staffId;
+            firstSlot.spanTwoPeriods = true;
+            
+            secondSlot.subjectId = lab.id;
+            secondSlot.staffId = lab.staffId;
+            secondSlot.spanTwoPeriods = true;
+            
+            scheduled = true;
+            console.log(`Force scheduled lab ${lab.name} on ${day} at period ${period}-${period+1}`);
+            break;
+          }
+        }
+        if (scheduled) break;
       }
     }
   });
@@ -189,6 +236,8 @@ export const generateTimetable = (
         periodsAssigned++;
       }
     }
+    
+    console.log(`Assigned ${periodsAssigned}/${subject.periodsPerWeek} periods for ${subject.name}`);
   });
 
   // Sort the timetable by day and period for display

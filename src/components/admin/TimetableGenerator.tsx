@@ -31,8 +31,14 @@ const TimetableGenerator = () => {
         return;
       }
       
+      console.log("Starting timetable generation from admin panel...");
+      console.log("Subjects:", subjects);
+      console.log("Staff:", staff);
+      
       // Generate the timetable
       const generatedTimetable = generateTimetable(subjects, staff, settings);
+      
+      console.log("Timetable generated:", generatedTimetable);
       
       // Save the generated timetable
       saveTimetable(generatedTimetable);
