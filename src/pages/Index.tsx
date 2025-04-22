@@ -1,12 +1,20 @@
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import TimetableHeader from "../components/timetable/TimetableHeader";
 import TimetableDisplay from "../components/timetable/TimetableDisplay";
 import TimetableLegend from "../components/timetable/TimetableLegend";
-import { getTimetable, initializeEmptyTimetable } from "../data/dataService";
+import { getTimetable, initializeEmptyTimetable, getSubjects, getStaff, getSettings, saveTimetable } from "../data/dataService";
+import { useAuth } from "../contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import { generateTimetable } from "../utils/timetableGenerator";
+import { toast } from "sonner";
 
 const Index = () => {
+  const { isAuthenticated } = useAuth();
+  const [isGenerating, setIsGenerating] = useState(false);
+
   useEffect(() => {
     // Initialize empty timetable if none exists
     const currentTimetable = getTimetable();
@@ -15,13 +23,60 @@ const Index = () => {
     }
   }, []);
 
+  const handleRegenerateTimetable = () => {
+    setIsGenerating(true);
+    
+    try {
+      const subjects = getSubjects();
+      const staff = getStaff();
+      const settings = getSettings();
+      
+      if (subjects.length === 0) {
+        toast.error("No subjects added. Please add subjects first in the admin panel.");
+        setIsGenerating(false);
+        return;
+      }
+      
+      if (staff.length === 0) {
+        toast.error("No staff added. Please add staff first in the admin panel.");
+        setIsGenerating(false);
+        return;
+      }
+      
+      // Generate the timetable
+      const generatedTimetable = generateTimetable(subjects, staff, settings);
+      
+      // Save the generated timetable
+      saveTimetable(generatedTimetable);
+      
+      toast.success("Timetable regenerated successfully!");
+    } catch (error) {
+      console.error("Error generating timetable:", error);
+      toast.error("Failed to generate timetable. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
       <div className="container mx-auto py-8 px-4">
         <TimetableHeader />
         <div className="bg-white p-6 rounded-lg shadow-sm border">
-          <h2 className="text-xl font-bold mb-4">Weekly Timetable</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Weekly Timetable</h2>
+            {isAuthenticated && (
+              <Button 
+                onClick={handleRegenerateTimetable} 
+                disabled={isGenerating}
+                className="flex gap-2 items-center"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {isGenerating ? "Regenerating..." : "Regenerate Timetable"}
+              </Button>
+            )}
+          </div>
           <TimetableDisplay />
           <TimetableLegend />
           

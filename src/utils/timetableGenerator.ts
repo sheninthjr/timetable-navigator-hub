@@ -8,9 +8,9 @@ export const generateTimetable = (
 ): TimeSlot[] => {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const periodsPerDay = settings.periodTimings.length;
-  const timetable: TimeSlot[] = [];
+  let timetable: TimeSlot[] = [];
 
-  // Create empty timetable with breaks
+  // Create empty timetable structure
   days.forEach((day) => {
     for (let period = 1; period <= periodsPerDay; period++) {
       // Add regular periods
@@ -20,174 +20,6 @@ export const generateTimetable = (
         subjectId: null,
         staffId: null,
       });
-    }
-  });
-
-  // Sort subjects by priority (labs first, then regular subjects)
-  const sortedSubjects = [...subjects].sort((a, b) => {
-    // Labs have higher priority
-    if (a.isLab && !b.isLab) return -1;
-    if (!a.isLab && b.isLab) return 1;
-    // Then sort by custom priority value
-    return a.priority - b.priority;
-  });
-
-  // Schedule lab sessions first (they take 2 consecutive periods)
-  const labSubjects = sortedSubjects.filter((subject) => subject.isLab);
-  labSubjects.forEach((lab) => {
-    let assigned = false;
-    let attempts = 0;
-    const maxAttempts = days.length * 3; // Avoid infinite loop
-
-    while (!assigned && attempts < maxAttempts) {
-      // Try to find 2 consecutive free periods
-      const dayIndex = Math.floor(Math.random() * days.length);
-      const day = days[dayIndex];
-      
-      // Start from a random period but ensure we don't exceed the day length
-      const startPeriodOptions = [1, 3, 6]; // Periods 1-2, 3-4, 6-7 (avoiding breaks)
-      const startPeriodIndex = Math.floor(Math.random() * startPeriodOptions.length);
-      const startPeriod = startPeriodOptions[startPeriodIndex];
-      
-      // Check if both periods are free
-      const firstPeriodSlot = timetable.find(
-        (slot) => slot.day === day && slot.period === startPeriod
-      );
-      const secondPeriodSlot = timetable.find(
-        (slot) => slot.day === day && slot.period === startPeriod + 1
-      );
-
-      if (
-        firstPeriodSlot && 
-        secondPeriodSlot && 
-        !firstPeriodSlot.subjectId && 
-        !secondPeriodSlot.subjectId
-      ) {
-        // Assign lab to both periods
-        firstPeriodSlot.subjectId = lab.id;
-        firstPeriodSlot.staffId = lab.staffId;
-        firstPeriodSlot.spanTwoPeriods = true;
-        
-        secondPeriodSlot.subjectId = lab.id;
-        secondPeriodSlot.staffId = lab.staffId;
-        secondPeriodSlot.spanTwoPeriods = true;
-        
-        assigned = true;
-      }
-      
-      attempts++;
-    }
-    
-    // If we couldn't assign the lab after max attempts, let's force assign it
-    if (!assigned) {
-      // Find the first available 2 consecutive slots
-      for (let dayIndex = 0; dayIndex < days.length && !assigned; dayIndex++) {
-        const day = days[dayIndex];
-        
-        for (let period = 1; period < periodsPerDay && !assigned; period++) {
-          // Skip if we're at a break period
-          if (settings.breaks.some(b => b.after === period)) {
-            continue;
-          }
-          
-          const firstPeriodSlot = timetable.find(
-            (slot) => slot.day === day && slot.period === period
-          );
-          const secondPeriodSlot = timetable.find(
-            (slot) => slot.day === day && slot.period === period + 1
-          );
-          
-          if (
-            firstPeriodSlot && 
-            secondPeriodSlot && 
-            !firstPeriodSlot.subjectId && 
-            !secondPeriodSlot.subjectId
-          ) {
-            // Force assign lab
-            firstPeriodSlot.subjectId = lab.id;
-            firstPeriodSlot.staffId = lab.staffId;
-            firstPeriodSlot.spanTwoPeriods = true;
-            
-            secondPeriodSlot.subjectId = lab.id;
-            secondPeriodSlot.staffId = lab.staffId;
-            secondPeriodSlot.spanTwoPeriods = true;
-            
-            assigned = true;
-          }
-        }
-      }
-    }
-  });
-
-  // Distribute regular subjects
-  const regularSubjects = sortedSubjects.filter((subject) => !subject.isLab);
-  regularSubjects.forEach((subject) => {
-    let periodsAssigned = 0;
-    
-    while (periodsAssigned < subject.periodsPerWeek) {
-      // Try to find a free period
-      let assigned = false;
-      let attempts = 0;
-      const maxAttempts = timetable.length; // Avoid infinite loop
-      
-      while (!assigned && attempts < maxAttempts) {
-        // Pick a random day and period
-        const dayIndex = Math.floor(Math.random() * days.length);
-        const day = days[dayIndex];
-        const periodIndex = Math.floor(Math.random() * periodsPerDay) + 1;
-        
-        // Check if period is free
-        const timeSlot = timetable.find(
-          (slot) => slot.day === day && slot.period === periodIndex
-        );
-        
-        if (timeSlot && !timeSlot.subjectId && !timeSlot.isBreak) {
-          // Check if the staff is already teaching in another class at this time
-          const staffBusy = timetable.some(
-            (slot) => 
-              slot.day === day && 
-              slot.period === periodIndex && 
-              slot.staffId === subject.staffId
-          );
-          
-          if (!staffBusy) {
-            // Assign subject to period
-            timeSlot.subjectId = subject.id;
-            timeSlot.staffId = subject.staffId;
-            
-            assigned = true;
-            periodsAssigned++;
-          }
-        }
-        
-        attempts++;
-      }
-      
-      // If we couldn't assign a period after max attempts, force assign it
-      if (!assigned) {
-        // Find the first available slot
-        for (let dayIndex = 0; dayIndex < days.length && !assigned; dayIndex++) {
-          const day = days[dayIndex];
-          
-          for (let period = 1; period <= periodsPerDay && !assigned; period++) {
-            const timeSlot = timetable.find(
-              (slot) => slot.day === day && slot.period === period
-            );
-            
-            if (timeSlot && !timeSlot.subjectId && !timeSlot.isBreak) {
-              // Force assign subject even if staff is busy elsewhere
-              timeSlot.subjectId = subject.id;
-              timeSlot.staffId = subject.staffId;
-              
-              assigned = true;
-              periodsAssigned++;
-            }
-          }
-        }
-      }
-      
-      // If still not assigned, break to avoid infinite loop
-      if (!assigned) break;
     }
   });
 
@@ -205,10 +37,166 @@ export const generateTimetable = (
     });
   });
 
+  // Sort subjects by priority (labs first, then regular subjects)
+  const sortedSubjects = [...subjects].sort((a, b) => {
+    // Labs have higher priority
+    if (a.isLab && !b.isLab) return -1;
+    if (!a.isLab && b.isLab) return 1;
+    // Then sort by custom priority value
+    return a.priority - b.priority;
+  });
+
+  // Schedule lab sessions first (they take 2 consecutive periods)
+  const labSubjects = sortedSubjects.filter((subject) => subject.isLab);
+  
+  labSubjects.forEach((lab) => {
+    let periodsAssigned = 0;
+    while (periodsAssigned < (lab.periodsPerWeek / 2)) { // Each lab session takes 2 periods
+      // Try to place lab in available two consecutive periods
+      const randomDayIndex = Math.floor(Math.random() * days.length);
+      const day = days[randomDayIndex];
+      
+      // Find potential start periods that allow for 2 consecutive slots
+      // Avoid periods before breaks
+      const potentialStartPeriods = [];
+      for (let p = 1; p <= periodsPerDay - 1; p++) {
+        // Check if this period and next period are not before a break
+        const isBeforeBreak = settings.breaks.some(b => b.after === p);
+        if (!isBeforeBreak) {
+          potentialStartPeriods.push(p);
+        }
+      }
+      
+      if (potentialStartPeriods.length === 0) continue;
+      
+      const randomStartPeriodIndex = Math.floor(Math.random() * potentialStartPeriods.length);
+      const startPeriod = potentialStartPeriods[randomStartPeriodIndex];
+      
+      // Find the slots for these periods
+      const firstPeriodSlot = timetable.find(
+        slot => slot.day === day && slot.period === startPeriod && !slot.isBreak
+      );
+      const secondPeriodSlot = timetable.find(
+        slot => slot.day === day && slot.period === startPeriod + 1 && !slot.isBreak
+      );
+      
+      // Check if both slots are available and staff isn't already assigned elsewhere
+      if (
+        firstPeriodSlot && 
+        secondPeriodSlot && 
+        !firstPeriodSlot.subjectId && 
+        !secondPeriodSlot.subjectId
+      ) {
+        // Check if staff is already teaching in another class at this time
+        const staffBusyFirst = timetable.some(
+          slot => 
+            slot.day === day && 
+            slot.period === startPeriod && 
+            slot.staffId === lab.staffId &&
+            slot !== firstPeriodSlot
+        );
+        
+        const staffBusySecond = timetable.some(
+          slot => 
+            slot.day === day && 
+            slot.period === startPeriod + 1 && 
+            slot.staffId === lab.staffId &&
+            slot !== secondPeriodSlot
+        );
+        
+        if (!staffBusyFirst && !staffBusySecond) {
+          // Assign lab to both periods
+          firstPeriodSlot.subjectId = lab.id;
+          firstPeriodSlot.staffId = lab.staffId;
+          firstPeriodSlot.spanTwoPeriods = true;
+          
+          secondPeriodSlot.subjectId = lab.id;
+          secondPeriodSlot.staffId = lab.staffId;
+          secondPeriodSlot.spanTwoPeriods = true;
+          
+          periodsAssigned++;
+        }
+      }
+      
+      // Add a safety break to prevent infinite loops
+      if (periodsAssigned === 0 && Math.random() < 0.2) {
+        break;
+      }
+    }
+  });
+
+  // Distribute regular subjects
+  const regularSubjects = sortedSubjects.filter(subject => !subject.isLab);
+  
+  regularSubjects.forEach(subject => {
+    let periodsAssigned = 0;
+    let failedAttempts = 0;
+    
+    while (periodsAssigned < subject.periodsPerWeek && failedAttempts < 50) {
+      // Pick a random day and period
+      const randomDayIndex = Math.floor(Math.random() * days.length);
+      const day = days[randomDayIndex];
+      const randomPeriodIndex = Math.floor(Math.random() * periodsPerDay) + 1;
+      
+      // Find the slot for this period
+      const timeSlot = timetable.find(
+        slot => slot.day === day && slot.period === randomPeriodIndex && !slot.isBreak
+      );
+      
+      // Check if slot is available
+      if (timeSlot && !timeSlot.subjectId) {
+        // Check if staff is already teaching in another class at this time
+        const staffBusy = timetable.some(
+          slot => 
+            slot.day === day && 
+            slot.period === randomPeriodIndex && 
+            slot.staffId === subject.staffId &&
+            slot !== timeSlot
+        );
+        
+        if (!staffBusy) {
+          // Assign subject to this period
+          timeSlot.subjectId = subject.id;
+          timeSlot.staffId = subject.staffId;
+          periodsAssigned++;
+        } else {
+          failedAttempts++;
+        }
+      } else {
+        failedAttempts++;
+      }
+    }
+    
+    // If we couldn't assign all periods normally, force assign the remaining ones
+    if (periodsAssigned < subject.periodsPerWeek) {
+      // Sort the timetable slots to ensure a deterministic order
+      const availableSlots = timetable
+        .filter(slot => !slot.isBreak && !slot.subjectId)
+        .sort((a, b) => {
+          // Sort by day first
+          const dayOrder = days.indexOf(a.day) - days.indexOf(b.day);
+          if (dayOrder !== 0) return dayOrder;
+          // Then by period
+          return a.period - b.period;
+        });
+      
+      for (let i = 0; i < availableSlots.length && periodsAssigned < subject.periodsPerWeek; i++) {
+        const slot = availableSlots[i];
+        
+        // Assign subject even if staff is busy elsewhere
+        slot.subjectId = subject.id;
+        slot.staffId = subject.staffId;
+        periodsAssigned++;
+      }
+    }
+  });
+
   // Sort the timetable by day and period for display
-  return timetable.sort((a, b) => {
+  timetable.sort((a, b) => {
     const dayOrder = days.indexOf(a.day) - days.indexOf(b.day);
     if (dayOrder !== 0) return dayOrder;
     return a.period - b.period;
   });
+
+  return timetable;
 };
