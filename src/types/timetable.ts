@@ -1,4 +1,3 @@
-
 export interface Staff {
   id: string;
   name: string;
@@ -41,7 +40,8 @@ export interface TimeSlot {
   staffId: string | null;
   isBreak?: boolean;
   breakName?: string;
-  spanTwoPeriods?: boolean;
+  spanConsecutivePeriods?: number; // Total number of consecutive periods
+  consecutiveIndex?: number; // Position within the consecutive block (0-based)
 }
 
 export interface TimetableSettings {

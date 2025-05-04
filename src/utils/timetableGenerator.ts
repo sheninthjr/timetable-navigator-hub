@@ -1,4 +1,3 @@
-
 import { Subject, Staff, TimeSlot, TimetableSettings } from "../types/timetable";
 
 export const generateTimetable = (
@@ -6,7 +5,9 @@ export const generateTimetable = (
   staff: Staff[],
   settings: TimetableSettings
 ): TimeSlot[] => {
+  // Include Saturday for regular classes
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const labDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]; // Labs only on weekdays
   const periodsPerDay = settings.periodTimings.length;
   let timetable: TimeSlot[] = [];
 
@@ -44,8 +45,18 @@ export const generateTimetable = (
     });
   });
 
+  // Find the Activity Period subject
+  const activitySubject = subjects.find(
+    (subject) => subject.shortName === "ACTIVITY" || subject.name === "Department Activity Hour"
+  );
+
+  // Remove activity subject from the subjects array to prevent it from being scheduled elsewhere
+  const subjectsWithoutActivity = activitySubject 
+    ? subjects.filter(subject => subject.id !== activitySubject.id)
+    : [...subjects];
+
   // Sort subjects by priority (labs first, then regular subjects)
-  const sortedSubjects = [...subjects].sort((a, b) => {
+  const sortedSubjects = [...subjectsWithoutActivity].sort((a, b) => {
     // Labs have higher priority
     if (a.isLab && !b.isLab) return -1;
     if (!a.isLab && b.isLab) return 1;
@@ -53,126 +64,95 @@ export const generateTimetable = (
     return a.priority - b.priority;
   });
 
-  // Schedule lab sessions first (they take 2 consecutive periods)
-  const labSubjects = sortedSubjects.filter((subject) => subject.isLab);
+  const labs = subjectsWithoutActivity.filter((subject) => subject.isLab);
+
+  const labDayCombination = getRandomUniqueArray(labs.length + 1).slice(0, labs.length); // e.g., [2, 4, 1]
+  const labPeriodCombination = getRandomUniquePeriod(6, 4).map((p) => p + 1).sort((a, b) => a - b); // Now 1-based
+  console.log("Lab Days:", labDayCombination);
+  console.log("Lab Periods:", labPeriodCombination);
+  // [0, 4, 3, 2, 1]
+  // [7, 2, 3, 6]
+
+  const usedSlots = new Set<string>();
+
+  labs.forEach((lab, index) => {
+    const dayIndex = labDayCombination[index % labDayCombination.length];
+    const day = days[dayIndex];
   
-  labSubjects.forEach((lab) => {
-    // Each lab should only be scheduled once (for 2 consecutive periods)
-    // Instead of periodsPerWeek/2 which could lead to multiple sessions
-    let scheduled = false;
-    const maxAttempts = 50; // Prevent infinite loops
-    let attempts = 0;
-    
-    // Try to place lab in a single 2-period block
-    while (!scheduled && attempts < maxAttempts) {
-      attempts++;
-      
-      // Randomly select a day
-      const randomDayIndex = Math.floor(Math.random() * days.length);
-      const day = days[randomDayIndex];
-      
-      // Find potential start periods that allow for 2 consecutive slots
-      // Avoid periods before breaks
-      const potentialStartPeriods = [];
-      for (let p = 1; p <= periodsPerDay - 1; p++) {
-        // Check if this period and next period are not before a break
-        const isBeforeBreak = settings.breaks.some(b => b.after === p);
-        if (!isBeforeBreak) {
-          potentialStartPeriods.push(p);
+    const requiredConsecutive = lab.periodsPerWeek;
+    let placed = false;
+  
+    // Get the period to start with
+    const startPeriod = labPeriodCombination[index % labPeriodCombination.length];
+    console.log('startPeriod', startPeriod);
+  
+    if (startPeriod + requiredConsecutive - 1 <= periodsPerDay) {
+      let canPlace = true;
+  
+      // Check if all required consecutive periods are free
+      for (let i = 0; i < requiredConsecutive; i++) {
+        const slot = timetable.find(
+          t => t.day === day && t.period === startPeriod + i && !t.subjectId && !t.isBreak
+        );
+        if (!slot) {
+          canPlace = false;
+          break;
         }
       }
-      
-      if (potentialStartPeriods.length === 0) continue;
-      
-      const randomStartPeriodIndex = Math.floor(Math.random() * potentialStartPeriods.length);
-      const startPeriod = potentialStartPeriods[randomStartPeriodIndex];
-      
-      // Find the slots for these periods
-      const firstPeriodSlot = timetable.find(
-        slot => slot.day === day && slot.period === startPeriod && !slot.isBreak
-      );
-      const secondPeriodSlot = timetable.find(
-        slot => slot.day === day && slot.period === startPeriod + 1 && !slot.isBreak
-      );
-      
-      // Check if both slots are available and staff isn't already assigned elsewhere
-      if (
-        firstPeriodSlot && 
-        secondPeriodSlot && 
-        !firstPeriodSlot.subjectId && 
-        !secondPeriodSlot.subjectId
-      ) {
-        // Check if staff is already teaching in another class at this time
-        const staffBusyFirst = timetable.some(
-          slot => 
-            slot.day === day && 
-            slot.period === startPeriod && 
-            slot.staffId === lab.staffId &&
-            slot !== firstPeriodSlot
-        );
-        
-        const staffBusySecond = timetable.some(
-          slot => 
-            slot.day === day && 
-            slot.period === startPeriod + 1 && 
-            slot.staffId === lab.staffId &&
-            slot !== secondPeriodSlot
-        );
-        
-        if (!staffBusyFirst && !staffBusySecond) {
-          // Assign lab to both periods
-          firstPeriodSlot.subjectId = lab.id;
-          firstPeriodSlot.staffId = lab.staffId;
-          firstPeriodSlot.spanTwoPeriods = true;
-          
-          secondPeriodSlot.subjectId = lab.id;
-          secondPeriodSlot.staffId = lab.staffId;
-          secondPeriodSlot.spanTwoPeriods = true;
-          
-          scheduled = true;
-          console.log(`Scheduled lab ${lab.name} on ${day} at period ${startPeriod}-${startPeriod+1}`);
-        }
-      }
-    }
-    
-    // If we couldn't schedule the lab normally, force place it
-    if (!scheduled) {
-      console.log(`Could not schedule lab ${lab.name} normally, forcing placement`);
-      // Find any two consecutive available slots
-      for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-        const day = days[dayIndex];
-        for (let period = 1; period < periodsPerDay; period++) {
-          // Skip periods before breaks
-          const isBeforeBreak = settings.breaks.some(b => b.after === period);
-          if (isBeforeBreak) continue;
-          
-          const firstSlot = timetable.find(
-            slot => slot.day === day && slot.period === period && !slot.isBreak && !slot.subjectId
+  
+      if (canPlace) {
+        // Assign the lab to consecutive periods
+        for (let i = 0; i < requiredConsecutive; i++) {
+          const slot = timetable.find(
+            t => t.day === day && t.period === startPeriod + i && !t.subjectId && !t.isBreak
           );
-          const secondSlot = timetable.find(
-            slot => slot.day === day && slot.period === period + 1 && !slot.isBreak && !slot.subjectId
-          );
-          
-          if (firstSlot && secondSlot) {
-            firstSlot.subjectId = lab.id;
-            firstSlot.staffId = lab.staffId;
-            firstSlot.spanTwoPeriods = true;
-            
-            secondSlot.subjectId = lab.id;
-            secondSlot.staffId = lab.staffId;
-            secondSlot.spanTwoPeriods = true;
-            
-            scheduled = true;
-            console.log(`Force scheduled lab ${lab.name} on ${day} at period ${period}-${period+1}`);
-            break;
+          if (slot) {
+            slot.subjectId = lab.id;
+            slot.staffId = lab.staffId;
+            usedSlots.add(`${day}-${startPeriod + i}`);
           }
         }
-        if (scheduled) break;
+        placed = true;
       }
     }
+  
+    if (!placed) {
+      console.warn(`Could not place lab ${lab.shortName} on ${day}`);
+    }
   });
+  
+  // Handle activity period - last two periods of Saturday
+  if (activitySubject) {
+    const saturdayIndex = days.indexOf("Saturday");
+    if (saturdayIndex !== -1) {
+      // Find the last two periods on Saturday
+      const lastPeriod = periodsPerDay;
+      const secondLastPeriod = periodsPerDay - 1;
+      
+      // Assign activity period to these slots
+      const lastPeriodSlot = timetable.find(
+        slot => slot.day === "Saturday" && slot.period === lastPeriod && !slot.isBreak
+      );
+      
+      const secondLastPeriodSlot = timetable.find(
+        slot => slot.day === "Saturday" && slot.period === secondLastPeriod && !slot.isBreak
+      );
+      
+      if (lastPeriodSlot) {
+        lastPeriodSlot.subjectId = activitySubject.id;
+        lastPeriodSlot.staffId = activitySubject.staffId;
+        console.log(`Assigned activity period to Saturday, Period ${lastPeriod}`);
+      }
+      
+      if (secondLastPeriodSlot) {
+        secondLastPeriodSlot.subjectId = activitySubject.id;
+        secondLastPeriodSlot.staffId = activitySubject.staffId;
+        console.log(`Assigned activity period to Saturday, Period ${secondLastPeriod}`);
+      }
+    }
+  }
 
-  // Distribute regular subjects
+  // Distribute regular subjects (can be on any day including Saturday)
   const regularSubjects = sortedSubjects.filter(subject => !subject.isLab);
   
   regularSubjects.forEach(subject => {
@@ -180,7 +160,7 @@ export const generateTimetable = (
     let failedAttempts = 0;
     
     while (periodsAssigned < subject.periodsPerWeek && failedAttempts < 50) {
-      // Pick a random day and period
+      // Pick a random day and period (can include Saturday for regular classes)
       const randomDayIndex = Math.floor(Math.random() * days.length);
       const day = days[randomDayIndex];
       const randomPeriodIndex = Math.floor(Math.random() * periodsPerDay) + 1;
@@ -246,6 +226,60 @@ export const generateTimetable = (
     if (dayOrder !== 0) return dayOrder;
     return a.period - b.period;
   });
-
+  
+  printTimetableSummary(timetable, subjects, settings, days);
+console.log(timetable)
   return timetable;
 };
+
+
+function getRandomUniqueArray(length: number) {
+  const numbers = Array.from({ length }, (_, i) => i);
+  for (let i = numbers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [numbers[i], numbers[j]] = [numbers[j], numbers[i]];
+  }
+  return numbers;
+}
+
+function getRandomUniquePeriod(totalPeriods: number, selectCount: number): number[] {
+  const allPeriods = Array.from({ length: totalPeriods }, (_, i) => i);
+  for (let i = allPeriods.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allPeriods[i], allPeriods[j]] = [allPeriods[j], allPeriods[i]];
+  }
+  return allPeriods.slice(0, selectCount);
+}
+
+function printTimetableSummary(timetable: TimeSlot[], subjects: Subject[], settings: TimetableSettings, days: string[]) {
+  const totalPeriodsPerDay = settings.periodTimings.length;
+  const expectedTotalSlots = days.length * totalPeriodsPerDay;
+
+  const assignedSlots = timetable.filter(slot => slot.subjectId && !slot.isBreak);
+  const unassignedSlots = timetable.filter(slot => !slot.subjectId && !slot.isBreak);
+
+  console.log("\n========= 📊 Timetable Summary =========");
+  console.log(`📅 Days: ${days.join(", ")}`);
+  console.log(`🕒 Periods per day: ${totalPeriodsPerDay}`);
+  console.log(`📚 Total non-break slots: ${expectedTotalSlots}`);
+  console.log(`✅ Assigned periods: ${assignedSlots.length}`);
+  console.log(`❌ Unassigned periods: ${unassignedSlots.length}`);
+
+  if (unassignedSlots.length > 0) {
+    console.log("\n⚠️ Unassigned Periods:");
+    unassignedSlots.forEach(slot => {
+      console.log(`- ${slot.day}, Period ${slot.period}`);
+    });
+  } else {
+    console.log("🎉 All periods are successfully assigned!");
+  }
+
+  console.log("\n📦 Subject-wise Period Assignment:");
+  subjects.forEach(subject => {
+    const assigned = timetable.filter(slot => slot.subjectId === subject.id).length;
+    const emoji = assigned === subject.periodsPerWeek ? "✅" : "⚠️";
+    console.log(`${emoji} ${subject.name} → Assigned: ${assigned}/${subject.periodsPerWeek}`);
+  });
+
+  console.log("========================================\n");
+}

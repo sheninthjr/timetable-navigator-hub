@@ -1,7 +1,5 @@
-
 import { Staff, Subject, TimeSlot, TimetableSettings, ClassDetails } from "../types/timetable";
 
-// In-memory storage (in a real app, this would use local storage or a backend)
 let staffData: Staff[] = [
   {
     id: "1",
@@ -63,7 +61,7 @@ let subjectData: Subject[] = [
     code: "CS8491",
     name: "Operating Systems",
     shortName: "OS",
-    periodsPerWeek: 6,
+    periodsPerWeek: 4,
     isLab: false,
     staffId: "2",
     priority: 1,
@@ -93,7 +91,7 @@ let subjectData: Subject[] = [
     code: "CS8591",
     name: "Computer Networks",
     shortName: "CN",
-    periodsPerWeek: 6,
+    periodsPerWeek: 4,
     isLab: false,
     staffId: "5",
     priority: 1,
@@ -133,7 +131,7 @@ let subjectData: Subject[] = [
     code: "CS8581",
     name: "Computer Networks Laboratory",
     shortName: "CN LAB",
-    periodsPerWeek: 3,
+    periodsPerWeek: 2,
     isLab: true,
     staffId: "5",
     priority: 3,
@@ -165,6 +163,16 @@ let subjectData: Subject[] = [
     shortName: "LIB/SKILL RACK",
     periodsPerWeek: 1,
     isLab: false,
+    staffId: "4",
+    priority: 5,
+  },
+  {
+    id: "13",
+    code: "AL3452",
+    name: "Operating System Laboratory",
+    shortName: "OS LAB",
+    periodsPerWeek: 2,
+    isLab: true,
     staffId: "4",
     priority: 5,
   },
@@ -254,7 +262,6 @@ export const saveTimetable = (newTimetable: TimeSlot[]): void => {
   timetableData = newTimetable;
 };
 
-// Initialize an empty timetable if needed
 export const initializeEmptyTimetable = () => {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const periods = 7;
@@ -266,7 +273,7 @@ export const initializeEmptyTimetable = () => {
         settingsData.breaks.find((b) => b.after === period) ||
         settingsData.breaks.find((b) => b.after === period - 1)
       ) {
-        continue; // Skip break slots
+        continue;
       }
 
       emptyTimetable.push({
