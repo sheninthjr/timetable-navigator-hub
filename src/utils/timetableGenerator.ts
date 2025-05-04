@@ -65,7 +65,7 @@ export const generateTimetable = (
   });
 
   const labs = subjectsWithoutActivity.filter((subject) => subject.isLab);
-
+console.log(labs, "labs")
   const labDayCombination = getRandomUniqueArray(labs.length + 1).slice(0, labs.length); // e.g., [2, 4, 1]
   const labPeriodCombination = getRandomUniquePeriod(6, 4).map((p) => p + 1).sort((a, b) => a - b); // Now 1-based
   console.log("Lab Days:", labDayCombination);

@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { getStaff as getStaff2 } from "@/data/dataService2";
+import { getSubjects as getSubjects2 } from "@/data/dataService2";
 
 interface SubjectManagerProps {
   onComplete: () => void;
@@ -35,10 +37,17 @@ const SubjectManager: React.FC<SubjectManagerProps> = ({ onComplete }) => {
   }, []);
 
   const loadData = () => {
-    const subjects = getSubjects();
-    const staff = getStaff();
-    setSubjectList(subjects);
-    setStaffList(staff);
+    if(window.location.pathname.includes("sem3") && window.location.pathname.includes("A")) {
+      const subjects = getSubjects2();
+      const staff = getStaff2();
+      setSubjectList(subjects);
+      setStaffList(staff);
+    } else {
+      const subjects = getSubjects();
+      const staff = getStaff();
+      setSubjectList(subjects);
+      setStaffList(staff);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

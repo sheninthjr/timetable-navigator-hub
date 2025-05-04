@@ -1,14 +1,32 @@
-
 import React from "react";
 import { getSettings } from "../../data/dataService";
+import { getSettings as getSettings2 } from "../../data/dataService2";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 
-const TimetableHeader = () => {
-  const settings = getSettings();
+interface TimetableHeaderProps {
+  semester?: string;
+  section?: string;
+}
+
+const TimetableHeader = ({ semester, section }: TimetableHeaderProps) => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  
+  // Get the appropriate data service functions based on the current context
+  const getCurrentDataService = () => {
+    if (semester === 'sem3' && section === 'A') {
+      return {
+        getSettings: getSettings2,
+      };
+    }
+    return {
+      getSettings,
+    };
+  };
+
+  const settings = getCurrentDataService().getSettings();
   
   return (
     <div className="mb-6">
@@ -60,7 +78,7 @@ const TimetableHeader = () => {
             
             {isAuthenticated && (
               <div className="mt-4">
-                <Button onClick={() => navigate("/admin")}>
+                <Button onClick={() => navigate(`/admin/${semester}/${section}`)}>
                   Manage Timetable
                 </Button>
               </div>

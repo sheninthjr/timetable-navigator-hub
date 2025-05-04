@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { getStaff as getStaff2 } from "@/data/dataService2";
 
 interface StaffManagerProps {
   onComplete: () => void;
@@ -29,8 +30,13 @@ const StaffManager: React.FC<StaffManagerProps> = ({ onComplete }) => {
   }, []);
 
   const loadStaffData = () => {
-    const staff = getStaff();
-    setStaffList(staff);
+    if(window.location.pathname.includes("sem3") && window.location.pathname.includes("A")) {
+      const staff = getStaff2();
+      setStaffList(staff);
+    } else {
+      const staff = getStaff();
+      setStaffList(staff);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,12 +1,18 @@
-
 import React, { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import StaffManager from "./StaffManager";
 import SubjectManager from "./SubjectManager";
 import TimetableGenerator from "./TimetableGenerator";
 import ClassDetailsForm from "./ClassDetailsForm";
+import { Staff, Subject, TimetableSettings } from "@/types/timetable";
 
-const AdminTabs = () => {
+interface AdminTabsProps {
+  initialStaff?: Staff[];
+  initialSubjects?: Subject[];
+  initialSettings?: TimetableSettings;
+}
+
+const AdminTabs = ({ initialStaff, initialSubjects, initialSettings }: AdminTabsProps) => {
   const [activeTab, setActiveTab] = useState("class-details");
 
   return (
@@ -19,15 +25,24 @@ const AdminTabs = () => {
       </TabsList>
 
       <TabsContent value="class-details">
-        <ClassDetailsForm onComplete={() => setActiveTab("staff")} />
+        <ClassDetailsForm 
+          initialSettings={initialSettings}
+          onComplete={() => setActiveTab("staff")} 
+        />
       </TabsContent>
       
       <TabsContent value="staff">
-        <StaffManager onComplete={() => setActiveTab("subjects")} />
+        <StaffManager 
+          initialStaff={initialStaff}
+          onComplete={() => setActiveTab("subjects")} 
+        />
       </TabsContent>
       
       <TabsContent value="subjects">
-        <SubjectManager onComplete={() => setActiveTab("generate")} />
+        <SubjectManager 
+          initialSubjects={initialSubjects}
+          onComplete={() => setActiveTab("generate")} 
+        />
       </TabsContent>
       
       <TabsContent value="generate">

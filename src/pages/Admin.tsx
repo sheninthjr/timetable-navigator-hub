@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AdminTabs from "../components/admin/AdminTabs";
 import Header from "../components/Header";
+import Year from "@/components/admin/Year";
 
 const Admin = () => {
   const { isAuthenticated } = useAuth();
@@ -28,7 +29,7 @@ const Admin = () => {
           Manage staff, subjects, and generate timetables for your institution.
         </p>
         
-        <AdminTabs />
+        <Year />
       </div>
     </div>
   );
